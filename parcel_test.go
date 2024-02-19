@@ -58,6 +58,8 @@ func TestAddGetDelete(t *testing.T) {
 	err = store.Delete(parcel.Number)
 	assert.NoError(t, err)
 	require.Empty(t, parcel.Number)
+	pack, err = store.Get(parcel.Number)
+	require.ErrorIs(t, err, sql.ErrNoRows)
 }
 
 // TestSetAddress проверяет обновление адреса
@@ -112,6 +114,7 @@ func TestGetByClient(t *testing.T) {
 	db, err := sql.Open("sqlite", "tracker.db")
 	if err != nil {
 		require.NoError(t, err)
+		defer db.Close()
 	}
 	store := NewParcelStore(db)
 
@@ -122,7 +125,8 @@ func TestGetByClient(t *testing.T) {
 	}
 
 	parcelMap := map[int]Parcel{}
-	client := randRange.Intn(10000000)
+
+	client := randRange.Intn(10_000_000)
 	parcels[0].Client = client
 	parcels[1].Client = client
 	parcels[2].Client = client
@@ -137,16 +141,12 @@ func TestGetByClient(t *testing.T) {
 	}
 	storedParcels, err := store.GetByClient(client)
 	require.NoError(t, err)
-	for _, parcel1 := range parcelMap {
-		for _, allParcels := range parcels {
-			assert.Equal(t, allParcels, parcel1)
-		}
-	}
+	require.Len(t, parcels, len(storedParcels))
+
 	for _, parcel := range storedParcels {
+		require.NotEmpty(t, parcel)
 		for _, parcel1 := range parcelMap {
-			require.NotEmpty(t, parcel)
-			assert.Equal(t, parcel1, parcel)
-			defer db.Close()
+			require.Equal(t, parcel, parcel1)
 		}
 	}
 }
